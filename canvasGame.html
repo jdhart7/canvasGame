@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		
+		<meta charset = "UTF-8">
+		<meta name = "viewport" content = "width-device-width, initial-scale = 1.0">
+		<meta http-equiv = "X-UA-Compatible" content = "ie-edge">
+		
+		<title>Canvas Game</title>
+		
+		<style>
+			* {
+				padding: 0;
+				margin: 0;
+			}
+			canvas {
+				background: #eee;
+				display: block;
+				margin: 0 auto;
+			}
+		</style>
+		
+	</head>
+	
+	<body>
+	
+		<br />
+		<canvas id = "myCanvas" width = "1000" height = "500"></canvas>
+		
+		<script>
+		
+			var canvas = document.getElementById("myCanvas");
+			var ctx = canvas.getContext("2d");
+			var rPressed = false;	//variables store whether the right, left, up, or down key is pressed
+			var lPressed = false;
+			var uPressed = false;
+			var dPressed = false;
+			var ballRadius = 10;	//variable stores the size of the ball. 
+			var x = 10;				//the default position of the ball is set here. x and y are both used to store the position of the ball.
+			var y = 10;
+			var playerSpeed = 5;	//this stores how fast the player is able to move.
+			var bullets = [];		//this array stores the position of the bullets as well as the direction.
+			var bWidth = 100;		//the width of the bullets
+			var bHeight = 10;		//the height of the bullets
+			var dis = 1;			//dis stores the amount of bullets that have gone off screen
+			var lives = 3;			//stores player lives
+			var timer = 0;			//after the player loses a life, the timer ensures they cannot die until the timer expires
+			var timeOut = 250;		//how long the timer last. time measured as frames drawn to the canvas.
+			var rWidth = 20;		//reward width
+			var rHeight = 20;		//reward height
+			var score = 0;			//keeps track of the score.
+			
+			var reward = {x: canvas.width / 2, y: canvas.height / 2 };		//initialize the reward with an x & y position at the middle of the board.
+			
+			bullets[0] = { x: -50, y: Math.floor((Math.random() * 500) + 10), s: Math.floor((Math.random() * 6) + 3), d: 1 };	//the game starts with two default bullets.
+			bullets[1] = { x: -50, y: Math.floor((Math.random() * 500) + 10), s: Math.floor((Math.random() * 6) + 3), d: 1 };
+																				//the bullets are placed with a random x & y position. the speed is set randomly and the
+			document.addEventListener("keydown", keyDownHandler, false);					//direction is always 1 (going to the right) to begin.
+			document.addEventListener("keyup", keyUpHandler, false);
+			document.addEventListener("mousemove", mouseMoveHandler, false);
+			
+			function mouseMoveHandler(e) {
+				var relativeX = e.clientX - canvas.offsetLeft;		//function places the player wherever the mouse is. offset is to make the cursor directly above the player.
+				var relativeY = e.clientY - canvas.offsetTop;
+				if (relativeX > 0 && relativeX < canvas.width) {
+					x = relativeX;
+					y = relativeY;
+				}
+			}
+			
+			function keyDownHandler(e) {
+				if (e.key == "Right" || e.key == "ArrowRight") {	//when the keys are pressed down, move the player.
+					rPressed = true;
+				}
+				if (e.key == "Left" || e.key == "ArrowLeft") {
+					lPressed = true;
+				}
+				if (e.key == "Up" || e.key == "ArrowUp") {
+					uPressed = true;
+				}
+				if (e.key == "Down" || e.key == "ArrowDown") {
+					dPressed = true;
+				}
+			}
+			
+			function keyUpHandler(e) {
+				if (e.key == "Right" || e.key == "ArrowRight") {	//when the key is lifted, stop moving the player.
+					rPressed = false;
+				}
+				if (e.key == "Left" || e.key == "ArrowLeft") {
+					lPressed = false;
+				}
+				if (e.key == "Up" || e.key == "ArrowUp") {
+					uPressed = false;
+				}
+				if (e.key == "Down" || e.key == "ArrowDown") {
+					dPressed = false;
+				}
+			}
+			
+			function drawPlayer() {		//draws a circle on the canvas that represents the player.
+				ctx.beginPath();
+				ctx.arc(x, y, ballRadius, 0, Math.PI * 2);		
+				ctx.fillStyle = "#0095DD";
+				ctx.fill();
+				ctx.closePath();
+			}
+			
+			function drawBullet() {				//draws the bullets on the canvas.
+				for (var c = 0; c < bullets.length; c++) {		//iterates through the bullet array to draw all of them.
+					ctx.beginPath();
+					ctx.rect(bullets[c].x, bullets[c].y, bWidth, bHeight);
+					ctx.fillyStyle = "#2E8B57";
+					ctx.fill();
+					ctx.closePath();
+					if (bullets[c].d == 1) {		//if the direction is 1, move it right. the s is for speed.
+						bullets[c].x += bullets[c].s;
+					} else {
+						bullets[c].x -= bullets[c].s;		//move it left otherwise.
+					}
+					if (bullets[c].x > 1000 || bullets[c].x < -200) {		//replaces the bullet when it moves off the screen.
+						var direc = Math.floor((Math.random() * 3) + 1);	//gets a random number for the direction.
+						if (direc == 1) {
+							bullets[c] = { x: -50, y: Math.floor((Math.random() * 500) + 10), s: Math.floor((Math.random() * 7) + 4), d: 1 };
+						} else {													//these randomly generate a bullet location and speed. Defaults to off the canvas so it's
+							bullets[c] = { x: 1000, y: Math.floor((Math.random() * 500) + 10), s: Math.floor((Math.random() * 7) + 4), d: 2 };	//not visable.
+						}
+						if (dis % 10 == 0 && bullets.length <= 10) {
+							bullets[bullets.length] = { x: -50, y: Math.floor((Math.random() * 500) + 10), s: Math.floor((Math.random() * 7) + 4), d: 1 };
+							dis = 1;
+						}											//after 10 bullets have moved offscreen, the number of bullets is increased here.
+						dis++;										//this leads to an exponential growth of bullets until it reaches 9.
+					}
+				}
+			}
+			
+			function drawReward() {		//prints the reward on the screen.
+				ctx.beginPath();
+				ctx.rect(reward.x, reward.y, rHeight, rWidth);
+				ctx.fillyStyle = "#a100dd";
+				ctx.fill();
+				ctx.closePath();
+			}
+			
+			function drawLives() {		//prints the amount of lives remaining on the screen at the top right.
+				ctx.font = "16px Arial";
+				ctx.fillStyle = "#dd0000";
+				ctx.fillText("Lives: " +lives, canvas.width - 65, 20);
+			}
+			
+			function drawScore() {		//prints the user's score at the top left.
+				ctx.font = "16px Arial";
+				ctx.fillStyle = "#dd0000";
+				ctx.fillText("Score: " +score, 10, 15);
+			}
+			
+			function detection() {		//function detects whether the player has collided with the reward or the bullets.
+				for (var c = 0; c < bullets.length; c++) {
+					if (x > bullets[c].x && x < bullets[c].x + bWidth && y > bullets[c].y && y < bullets[c].y + bHeight && timer >= timeOut) {
+						timer = 0;			//set the timer to 0 when the user hits a bullet.			^detects whether the player is inside a bullet.
+						lives--;			//remove a life when the player hits a bullet.
+						x = 10;				//reset the player's location.
+						y = 10;
+						if (lives == 0) {
+							alert("You Lose. Score: " +score);		//calls the player a loser when they have no lives. prints their score.
+							document.location.reload();				//reloads the screen after the player exits the alert.
+						}
+					}
+					if (x > reward.x && x < reward.x + rWidth && y > reward.y && y < reward.y + rHeight) {		//detects a collision with the reward and
+						score++;																							//increases the score
+						reward = {x: Math.floor((Math.random() * 700) + 70), y: Math.floor((Math.random() * 400) + 50) };	//places the score at a random coordinate in
+					}																										//middle of the canvas.
+				}
+			}
+					
+			
+			function draw() {					//main function loops through the other functions.
+				if (timer <= timeOut) {			//increases the timer every time a frame is drawn.
+					timer++;
+				}
+				
+				ctx.clearRect(0, 0, canvas.width, canvas.height);		//clear the canvas.
+				if (rPressed && x < canvas.width) {		//next 4 if statements move the player when a button is pressed.
+					x += playerSpeed;
+				}
+				if (lPressed && x > 0) {
+					x -= playerSpeed;
+				}
+				if (uPressed && y > 0) {
+					y -= playerSpeed;
+				}
+				if (dPressed && y < canvas.height) {
+					y += playerSpeed;
+				}
+				detection();		//calls the functions that actually print the objects and detections
+				drawPlayer();
+				drawBullet();
+				drawLives();
+				drawReward();
+				drawScore();
+				requestAnimationFrame(draw);
+			}
+			
+			draw();
+		
+		</script>
+		
+		<h3 style = "font-family: Arial;"><center>Use the arrow keys or the mouse to move. Get the sqare to earn points. Dodge the rectangles.</h3></center>
+	
+	</body>
+</html>
